@@ -62,7 +62,7 @@ all: run
 # - add qt if missing
 pyenv:
 # 	https://github.com/PyO3/maturin/issues/283 - Expected `python` to be a python interpreter inside a virtualenv
-	set -eu -o pipefail ${SHELLFLAGS}; \
+	@set -eu -o pipefail ${SHELLFLAGS}; \
 	"${PYTHON_BIN}" -m venv pyenv; \
 	case "$$(uname -s)" in CYGWIN*|MINGW*|MSYS*) \
 		dos2unix "${ACTIVATE_SCRIPT}"; \
@@ -202,3 +202,21 @@ ts-dev: develop
 	tmux new -d -s anki-ts "ANKIDEV=1 ANKI_API_PORT=9001 python qt/runanki $(RUNFLAGS)"
 	tmux split-window "(cd ts && make dev)"
 	tmux attach
+
+
+.PHONY: build-docker-image
+build-docker-image: Dockerfile
+	@set -eu -o pipefail ${SHELLFLAGS}; \
+	docker build --build-arg USER_ID=$$(id -u $${USER}) --build-arg GROUP_ID=$$(id -g $${USER}) -t anki-build -f Dockerfile .
+
+.PHONY: docker-build
+docker-build: build-docker-image
+	@set -eu -o pipefail ${SHELLFLAGS}; \
+	docker run --rm --volume ${PWD}:${PWD} --workdir ${PWD} anki-build
+
+.PHONY: run-the-docker-build
+run-the-docker-build: docker-build
+	@set -eu -o pipefail ${SHELLFLAGS}; \
+	. "${ACTIVATE_SCRIPT}"; \
+	echo "Starting Anki..."; \
+	python qt/runanki $(RUNFLAGS)
